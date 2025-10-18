@@ -1,0 +1,15 @@
+C:\Users\skrrs\Documents\Projects\file_integrity_checker\target\debug\deps\assert_cmd-06268a4825372154.d: C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\lib.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\macros.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\assert.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cargo.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cmd.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\output.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\color.rs C:\Users\skrrs\Documents\Projects\file_integrity_checker\target\debug\build\assert_cmd-1064e456e540c440\out/current_target.txt C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\../README.md
+
+C:\Users\skrrs\Documents\Projects\file_integrity_checker\target\debug\deps\libassert_cmd-06268a4825372154.rmeta: C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\lib.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\macros.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\assert.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cargo.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cmd.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\output.rs C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\color.rs C:\Users\skrrs\Documents\Projects\file_integrity_checker\target\debug\build\assert_cmd-1064e456e540c440\out/current_target.txt C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\../README.md
+
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\lib.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\macros.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\assert.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cargo.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\cmd.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\output.rs:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\color.rs:
+C:\Users\skrrs\Documents\Projects\file_integrity_checker\target\debug\build\assert_cmd-1064e456e540c440\out/current_target.txt:
+C:\Users\skrrs\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\assert_cmd-2.0.17\src\../README.md:
+
+# env-dep:OUT_DIR=C:\\Users\\skrrs\\Documents\\Projects\\file_integrity_checker\\target\\debug\\build\\assert_cmd-1064e456e540c440\\out
