@@ -1,30 +1,26 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
-#[derive(Parser)]
-#[command(name = "File Integrity Checker")]
-#[command(about = "Check and verify file integrity via SHA-256", long_about = None)]
+#[derive(Parser, Debug)]
+#[command(name = "file_integrity_checker")]
+#[command(about = "Simple file integrity checker using SHA-256")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Compute SHA-256 hash of a file
+    /// Hash a single file and print its digest
     Hash {
-        #[arg(help = "Path to file")]
-        path: String,
+        /// Path to the file
+        path: PathBuf,
     },
-
-    /// Add file or directory to the integrity registry
+    /// Add a file or directory (recursively) to the registry
     Add {
-        #[arg(help = "Path to file or directory")]
-        path: String,
+        /// Path to a file or directory
+        path: PathBuf,
     },
-
-    /// Verify file integrity using stored registry
-    Verify {
-        #[arg(short, long, help = "Optional report output file")]
-        output: Option<String>,
-    },
+    /// Verify files in the registry (partial implementation)
+    Verify,
 }
