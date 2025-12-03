@@ -1,51 +1,55 @@
-use std::{io, path::Path};
+use crate::hashing;
+use crate::registry::{Registry, Status};
+use chrono::Utc;
+use std::io;
 
-use crate::{
-    hashing::hash_file,
-    registry::{Registry, Status},
-};
-
-pub struct VerifyResult {
-    pub total: usize,
+#[derive(Debug, Default, Clone)]
+pub struct VerifySummary {
+    pub unchanged: usize,
     pub modified: usize,
+    pub new: usize,
     pub missing: usize,
-    pub clean: usize,
 }
 
-pub fn verify_registry(registry: &mut Registry) -> io::Result<VerifyResult> {
-    let mut result = VerifyResult {
-        total: 0,
-        modified: 0,
-        missing: 0,
-        clean: 0,
-    };
+#[derive(Debug)]
+pub struct VerifyResult {
+    pub path: String,
+    pub status: Status,
+}
 
-    for entry in registry.entries.values_mut() {
-        result.total += 1;
-        let path: &Path = &entry.path;
+pub fn verify_registry(registry: &mut Registry) -> io::Result<(Vec<VerifyResult>, VerifySummary)> {
+    let mut summary = VerifySummary::default();
+    let mut results = Vec::new();
 
-        if !path.exists() {
-            entry.status = Status::Missing;
-            result.missing += 1;
-            continue;
-        }
+    for (key, entry) in registry.entries.iter_mut() {
+        let path = &entry.path;
 
-        let current = hash_file(path)?;
-        if current == entry.hash {
-            entry.status = Status::Clean;
-            result.clean += 1;
+        if path.exists() {
+            let current_hash = hashing::hash_file(path)?;
+            if current_hash == entry.hash {
+                summary.unchanged += 1;
+                results.push(VerifyResult {
+                    path: key.clone(),
+                    status: Status::Unchanged,
+                });
+            } else {
+                summary.modified += 1;
+                entry.hash = current_hash;
+                results.push(VerifyResult {
+                    path: key.clone(),
+                    status: Status::Modified,
+                });
+            }
+
+            entry.last_verified = Utc::now();
         } else {
-            entry.status = Status::Modified;
-            result.modified += 1;
+            summary.missing += 1;
+            results.push(VerifyResult {
+                path: key.clone(),
+                status: Status::Missing,
+            });
         }
     }
 
-    Ok(result)
-}
-
-pub fn print_verify_summary(result: &VerifyResult) {
-    println!("Verified {} entries:", result.total);
-    println!("  Clean: {}", result.clean);
-    println!("  Modified: {}", result.modified);
-    println!("  Missing: {}", result.missing);
+    Ok((results, summary))
 }

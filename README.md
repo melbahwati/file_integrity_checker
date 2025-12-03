@@ -1,6 +1,27 @@
 // mo elbahwati 
 // project 1 
-// init commit, work in progress file integrity checker
+// file integrity checker
+
+
+// how to use tool: 
+
+
+//
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // initial outine: 
 /*

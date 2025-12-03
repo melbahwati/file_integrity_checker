@@ -11,16 +11,21 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Hash a single file and print its digest
+    /// Compute SHA-256 for a single file
     Hash {
-        /// Path to the file
+        /// Path to the file to hash
         path: PathBuf,
     },
+
     /// Add a file or directory (recursively) to the registry
     Add {
         /// Path to a file or directory
         path: PathBuf,
     },
-    /// Verify files in the registry (partial implementation)
+
+    /// Verify files listed in the registry
     Verify,
+
+    /// List registry entries without re-hashing
+    List,
 }
