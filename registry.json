@@ -1,0 +1,29 @@
+{
+  "entries": {
+    "src\\main.rs": {
+      "path": "src\\main.rs",
+      "hash": "0ecea3e78cd1dbc8c77576b7bf495631e66ada797ef1f32ce55644e7f27aac58",
+      "last_verified": "2025-12-05T06:31:04.256852Z"
+    },
+    "src\\verify.rs": {
+      "path": "src\\verify.rs",
+      "hash": "104518fe785a667fb9c08132c0ca5a2bf75b0a414989e9039d51046dd25b6df3",
+      "last_verified": "2025-12-05T06:31:04.257207800Z"
+    },
+    "src\\registry.rs": {
+      "path": "src\\registry.rs",
+      "hash": "30c8f3d99bf7574fa66da5f24a23c2745ae65e724442febf991e21089efda3c2",
+      "last_verified": "2025-12-05T06:31:04.257657700Z"
+    },
+    "src\\cli.rs": {
+      "path": "src\\cli.rs",
+      "hash": "5ef4b606dacebfa8e893f49487720d853ad164bdbeb6a1099e8ec7422e33f939",
+      "last_verified": "2025-12-05T06:31:04.256578600Z"
+    },
+    "src\\hashing.rs": {
+      "path": "src\\hashing.rs",
+      "hash": "0a6ec489acdeb3ff74162e75011b88037bbf3d7ee84158add3bb15781e3ab0ea",
+      "last_verified": "2025-12-05T06:31:04.257357400Z"
+    }
+  }
+}

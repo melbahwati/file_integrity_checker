@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-/// Compute SHA-256 hash of a file and return it as a hex string.
+/// helpers for hashing files
 pub fn hash_file(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -19,6 +19,28 @@ pub fn hash_file(path: &Path) -> io::Result<String> {
         hasher.update(&buf[..n]);
     }
 
-    let hash = hasher.finalize();
-    Ok(hex::encode(hash))
+    let digest = hasher.finalize();
+    Ok(hex::encode(digest))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hash_file;
+    use std::{fs, path::PathBuf};
+
+    // make a temp file in the system temp dir
+    fn write_temp_file(name: &str, contents: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!("fic_hash_test_{name}.txt"));
+        fs::write(&path, contents).unwrap();
+        path
+    }
+
+    #[test]
+    fn hash_file_produces_64_hex_chars() {
+        let path = write_temp_file("len", "hello");
+        let digest = hash_file(&path).unwrap();
+        assert_eq!(digest.len(), 64);
+        assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
+    }
 }

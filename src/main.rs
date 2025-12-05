@@ -5,127 +5,127 @@ mod verify;
 
 use crate::cli::{Cli, Commands};
 use crate::registry::{Registry, Status};
-use crate::verify::verify_registry;
+use crate::verify::{verify_registry, VerifyResult, VerifySummary};
 use clap::Parser;
+use std::io;
 use std::path::Path;
-use std::process;
 
-const REGISTRY_FILE: &str = "registry.json";
+/// entry point: parse args and hand off to subcommands
+fn main() -> io::Result<()> {
+    let cli = Cli::parse();
+    let registry_path = cli.registry;
 
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {e}");
-        process::exit(1);
+    match cli.command {
+        Commands::Hash { path } => run_hash(&path),
+        Commands::Add { path } => run_add(&registry_path, &path),
+        Commands::Verify { scan_root } => run_verify(&registry_path, scan_root.as_deref()),
+        Commands::List { json } => run_list(&registry_path, json),
+        Commands::Prune => run_prune(&registry_path),
     }
 }
 
-fn run() -> std::io::Result<()> {
-    let cli = Cli::parse();
+/// run the `hash` subcommand
+fn run_hash(path: &Path) -> io::Result<()> {
+    let digest = hashing::hash_file(path)?;
+    println!("{digest}");
+    Ok(())
+}
 
-    match cli.command {
-        Commands::Hash { path } => {
-            let digest = hashing::hash_file(&path)?;
-            println!("{digest}");
-        }
+/// run the `add` subcommand
+fn run_add(registry_path: &Path, path: &Path) -> io::Result<()> {
+    let mut registry = Registry::load_or_default(registry_path)?;
+    let added = registry.add_path(path)?;
+    registry.save(registry_path)?;
 
-        Commands::Add { path } => {
-            let registry_path = Path::new(REGISTRY_FILE);
+    println!("Added {added} entries from {}", path.display());
+    println!();
+    println!("Current registry entries:");
+    for (key, entry) in &registry.entries {
+        println!("  {key} -> hash {}", entry.hash);
+    }
 
-            let mut registry = if registry_path.exists() {
-                Registry::load(registry_path)?
-            } else {
-                Registry::new()
-            };
+    Ok(())
+}
 
-            let added = registry.add_path(&path)?;
-            registry.save(registry_path)?;
+/// run the `verify` subcommand
+fn run_verify(registry_path: &Path, scan_root: Option<&Path>) -> io::Result<()> {
+    if !registry_path.exists() {
+        eprintln!(
+            "registry file {} does not exist, nothing to verify",
+            registry_path.display()
+        );
+        return Ok(());
+    }
 
-            println!("Added {added} entries from {}", path.display());
+    let mut registry = Registry::load(registry_path)?;
+    let (results, summary) = verify_registry(&mut registry, scan_root)?;
+    registry.save(registry_path)?;
 
-            if added > 0 {
-                println!();
-                println!("Current registry entries:");
+    print_verify_results(&results, &summary);
+    Ok(())
+}
 
-                let mut keys: Vec<_> = registry.entries.keys().cloned().collect();
-                keys.sort();
+/// run the `list` subcommand
+fn run_list(registry_path: &Path, json: bool) -> io::Result<()> {
+    if !registry_path.exists() {
+        eprintln!(
+            "registry file {} does not exist, nothing to list",
+            registry_path.display()
+        );
+        return Ok(());
+    }
 
-                for key in keys {
-                    if let Some(entry) = registry.entries.get(&key) {
-                        println!("  {} -> hash {}", entry.path.display(), entry.hash);
-                    }
-                }
-            }
-        }
+    let registry = Registry::load(registry_path)?;
 
-        Commands::Verify => {
-            let registry_path = Path::new(REGISTRY_FILE);
-
-            if !registry_path.exists() {
-                eprintln!(
-                    "No registry found at {}. Run `add` first to create it.",
-                    registry_path.display()
-                );
-                return Ok(());
-            }
-
-            let mut registry = Registry::load(registry_path)?;
-            let (results, summary) = verify_registry(&mut registry)?;
-            registry.save(registry_path)?;
-
-            println!("Verification results:");
-            println!();
-
-            for result in results {
-                match result.status {
-                    Status::Unchanged => {
-                        println!("Unchanged  {}", result.path);
-                    }
-                    Status::Modified => {
-                        println!("Modified  {}", result.path);
-                    }
-                    Status::Missing => {
-                        println!("Missing   {}", result.path);
-                    }
-                    Status::New => {
-                        println!("New       {}", result.path);
-                    }
-                }
-            }
-
-            println!();
-            println!("Summary:");
-            println!("  Unchanged: {}", summary.unchanged);
-            println!("  Modified:  {}", summary.modified);
-            println!("  New:       {}", summary.new);
-            println!("  Missing:   {}", summary.missing);
-        }
-
-        Commands::List => {
-            let registry_path = Path::new(REGISTRY_FILE);
-
-            if !registry_path.exists() {
-                eprintln!(
-                    "No registry found at {}. Run `add` first to create it.",
-                    registry_path.display()
-                );
-                return Ok(());
-            }
-
-            let registry = Registry::load(registry_path)?;
-
-            println!("Registry entries ({} total):", registry.entries.len());
-            println!();
-
-            let mut keys: Vec<_> = registry.entries.keys().cloned().collect();
-            keys.sort();
-
-            for key in keys {
-                if let Some(entry) = registry.entries.get(&key) {
-                    println!("  {} -> hash {}", entry.path.display(), entry.hash);
-                }
-            }
+    if json {
+        let payload = serde_json::to_string_pretty(&registry).map_err(io::Error::other)?;
+        println!("{payload}");
+    } else {
+        println!("Current registry entries:");
+        for (key, entry) in &registry.entries {
+            println!("  {} -> hash {}", key, entry.hash);
         }
     }
 
     Ok(())
+}
+
+/// run the `prune` subcommand
+fn run_prune(registry_path: &Path) -> io::Result<()> {
+    if !registry_path.exists() {
+        eprintln!(
+            "registry file {} does not exist, nothing to prune",
+            registry_path.display()
+        );
+        return Ok(());
+    }
+
+    let mut registry = Registry::load(registry_path)?;
+    let removed = registry.prune_missing();
+    registry.save(registry_path)?;
+
+    println!("Pruned {removed} entries");
+    Ok(())
+}
+
+/// print detailed verify results plus the summary block
+fn print_verify_results(results: &[VerifyResult], summary: &VerifySummary) {
+    println!("Verification results:");
+    println!();
+
+    for r in results {
+        match r.status {
+            Status::Unchanged => println!("Unchanged  {}", r.path),
+            Status::Modified => println!("Modified   {}", r.path),
+            Status::New => println!("New        {}", r.path),
+            Status::Missing => println!("Missing    {}", r.path),
+        }
+    }
+
+    println!();
+    println!("Summary:");
+    println!("  Unchanged: {}", summary.unchanged);
+    println!("  Modified:  {}", summary.modified);
+    println!("  New:       {}", summary.new);
+    println!("  Missing:   {}", summary.missing);
 }

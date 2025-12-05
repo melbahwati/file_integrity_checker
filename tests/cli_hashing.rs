@@ -1,59 +1,113 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::fs;
+use tempfile::tempdir;
 
-/// `hash Cargo.toml` should succeed and print *something*.
-#[test]
-fn hash_command_prints_something() {
-    let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
-
-    cmd.arg("hash")
-        .arg("Cargo.toml")
-        .assert()
-        .success()
-        // Just make sure stdout is not empty
-        .stdout(predicate::str::is_empty().not());
-}
-
-/// The `hash` command should print a SHA-256 digest, which is 64 hex characters.
-/// We don't care *which* digest here, just that the last "word" looks like a hex digest.
+// hash on a real file should print a 64-char hex digest plus a newline
 #[test]
 fn hash_command_outputs_64_char_hex() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("data.txt");
+    fs::write(&file_path, "hello world").unwrap();
+
     let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
+    cmd.arg("hash").arg(&file_path);
 
-    let assert = cmd.arg("hash").arg("Cargo.toml").assert().success();
+    let assert = cmd.assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
 
-    // Capture stdout
-    let output = String::from_utf8(assert.get_output().stdout.clone())
-        .expect("stdout should be valid UTF-8");
-
-    // Our program prints something like:
-    // "SHA-256: <digest>\n"
-    // So we grab the last whitespace-separated "word"
-    let digest = output
-        .split_whitespace()
-        .last()
-        .expect("expected to find a digest in output");
-
-    // SHA-256 digest should be 64 hex characters
-    assert_eq!(
-        digest.len(),
-        64,
-        "digest should be 64 characters long, got {digest}"
-    );
     assert!(
-        digest.chars().all(|c| c.is_ascii_hexdigit()),
-        "digest should contain only hex characters, got {digest}"
+        predicate::str::is_match(r"^[0-9a-f]{64}\r?\n$")
+            .unwrap()
+            .eval(&stdout),
+        "stdout was: {stdout:?}"
     );
 }
 
-/// Calling `hash` with no file path should fail (Clap should error about missing arguments).
+// hash should print something non-empty for a valid file
+#[test]
+fn hash_command_prints_something() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("something.txt");
+    fs::write(&file_path, "contents").unwrap();
+
+    let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
+    cmd.arg("hash").arg(&file_path);
+
+    let assert = cmd.assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+
+    assert!(!stdout.trim().is_empty());
+}
+
+// calling hash without a path should fail but not crash
 #[test]
 fn hash_command_without_path_fails() {
     let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
+    cmd.arg("hash");
 
-    cmd.arg("hash")
-        .assert()
-        .failure()
-        // We don't care about exact wording, just that something was printed to stderr.
-        .stderr(predicate::str::is_empty().not());
+    let assert = cmd.assert().failure();
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+
+    let lower = stderr.to_lowercase();
+    assert!(
+        lower.contains("usage") || lower.contains("required"),
+        "stderr was: {stderr:?}"
+    );
+}
+
+// hashing a missing file should fail in a reasonable way
+#[test]
+fn hash_command_nonexistent_file_fails() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("does_not_exist.txt");
+
+    let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
+    cmd.arg("hash").arg(&file_path);
+
+    let assert = cmd.assert().failure();
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+
+    let lower = stderr.to_lowercase();
+    assert!(
+        lower.contains("no such file")
+            || lower.contains("cannot find the file")
+            || lower.contains("os {"),
+        "stderr was: {stderr:?}"
+    );
+}
+
+// running the binary with no subcommand should show clap help
+#[test]
+fn binary_shows_help_without_subcommand() {
+    let mut cmd = Command::cargo_bin("file_integrity_checker").unwrap();
+
+    let assert = cmd.assert().failure();
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    let lower = stderr.to_lowercase();
+
+    assert!(
+        lower.contains("usage"),
+        "stderr did not contain 'usage': {stderr:?}"
+    );
+    assert!(
+        lower.contains("hash"),
+        "stderr did not mention 'hash' subcommand: {stderr:?}"
+    );
+    assert!(
+        lower.contains("add"),
+        "stderr did not mention 'add' subcommand: {stderr:?}"
+    );
+    assert!(
+        lower.contains("verify"),
+        "stderr did not mention 'verify' subcommand: {stderr:?}"
+    );
+    assert!(
+        lower.contains("list"),
+        "stderr did not mention 'list' subcommand: {stderr:?}"
+    );
+    assert!(
+        lower.contains("prune"),
+        "stderr did not mention 'prune' subcommand: {stderr:?}"
+    );
 }
