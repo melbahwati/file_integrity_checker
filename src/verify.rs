@@ -22,21 +22,34 @@ pub struct VerifyResult {
     pub status: Status,
 }
 
-/// verify all entries in the registry, and optionally look for new files
-pub fn verify_registry(
-    registry: &mut Registry,
-    scan_root: Option<&Path>,
-) -> io::Result<(Vec<VerifyResult>, VerifySummary)> {
+/// determine which directories need to be scanned for possible new files.
+/// this looks at every tracked file and extracts its parent directory.
+/// this lets us find new files without storing extra metadata.
+fn collect_scan_roots(registry: &Registry) -> HashSet<String> {
+    let mut dirs = HashSet::new();
+
+    for entry in registry.entries.values() {
+        if let Some(parent) = entry.path.parent() {
+            dirs.insert(parent.to_string_lossy().to_string());
+        }
+    }
+
+    dirs
+}
+
+/// verify all existing entries, and detect new files inside previously added directories
+pub fn verify_registry(registry: &mut Registry) -> io::Result<(Vec<VerifyResult>, VerifySummary)> {
     let mut summary = VerifySummary::default();
     let mut results = Vec::new();
     let mut seen = HashSet::new();
 
-    // check all files in the registry
+    // first: verify tracked files
     for (key, entry) in registry.entries.iter_mut() {
         let path = &entry.path;
 
         if path.exists() {
             let current_hash = hashing::hash_file(path)?;
+
             if current_hash == entry.hash {
                 summary.unchanged += 1;
                 results.push(VerifyResult {
@@ -64,21 +77,27 @@ pub fn verify_registry(
         seen.insert(key.clone());
     }
 
-    // optional: look for new untracked files
-    if let Some(root) = scan_root {
-        for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
-            let path = entry.path();
-            if !path.is_file() {
+    // determine which directories to scan for new files
+    let scan_dirs = collect_scan_roots(registry);
+
+    // now scan those directories for untracked files
+    for dir in &scan_dirs {
+        let dir_path = Path::new(dir);
+
+        if !dir_path.exists() {
+            continue;
+        }
+
+        for entry in WalkDir::new(dir_path).into_iter().filter_map(Result::ok) {
+            let p = entry.path();
+
+            if !p.is_file() {
                 continue;
             }
 
-            let key = path.to_string_lossy().to_string();
-            if registry.entries.contains_key(&key)
-                || key.contains("\\target\\")
-                || key.contains("/target/")
-                || key.contains("\\.git\\")
-                || key.contains("/.git/")
-            {
+            let key = p.to_string_lossy().to_string();
+
+            if registry.entries.contains_key(&key) {
                 continue;
             }
 
@@ -86,6 +105,7 @@ pub fn verify_registry(
                 continue;
             }
 
+            // found a new file
             summary.new += 1;
             results.push(VerifyResult {
                 path: key.clone(),
@@ -110,42 +130,32 @@ mod tests {
     #[test]
     fn verify_detects_modified_and_missing() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let file_a = dir.path().join("a.txt");
-        let file_b = dir.path().join("b.txt");
+        let a = dir.path().join("a.txt");
+        let b = dir.path().join("b.txt");
 
-        {
-            let mut f = File::create(&file_a)?;
-            writeln!(f, "first version")?;
-        }
-        {
-            let mut f = File::create(&file_b)?;
-            writeln!(f, "first version")?;
-        }
+        File::create(&a)?.write_all(b"one")?;
+        File::create(&b)?.write_all(b"one")?;
 
-        let mut registry = Registry::new();
-        registry.add_path(dir.path())?;
+        let mut reg = Registry::new();
+        reg.add_path(dir.path())?;
 
-        {
-            let mut f = File::create(&file_a)?;
-            writeln!(f, "second version")?;
-        }
-        fs::remove_file(&file_b)?;
+        // modify a
+        File::create(&a)?.write_all(b"two")?;
+        // remove b
+        fs::remove_file(&b)?;
 
-        let (results, summary) = verify_registry(&mut registry, None)?;
+        let (results, summary) = verify_registry(&mut reg)?;
         assert_eq!(summary.modified, 1);
         assert_eq!(summary.missing, 1);
 
-        let mut saw_modified = false;
-        let mut saw_missing = false;
-        for r in results {
-            if r.path.ends_with("a.txt") && r.status == Status::Modified {
-                saw_modified = true;
-            }
-            if r.path.ends_with("b.txt") && r.status == Status::Missing {
-                saw_missing = true;
-            }
-        }
-        assert!(saw_modified);
+        let saw_mod = results
+            .iter()
+            .any(|r| r.path.ends_with("a.txt") && r.status == Status::Modified);
+        let saw_missing = results
+            .iter()
+            .any(|r| r.path.ends_with("b.txt") && r.status == Status::Missing);
+
+        assert!(saw_mod);
         assert!(saw_missing);
         Ok(())
     }
@@ -153,34 +163,24 @@ mod tests {
     #[test]
     fn verify_detects_new_files() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let file_tracked = dir.path().join("tracked.txt");
-        let file_new = dir.path().join("new.txt");
+        let tracked = dir.path().join("t.txt");
+        let newfile = dir.path().join("new.txt");
 
-        {
-            let mut f = File::create(&file_tracked)?;
-            writeln!(f, "this one is tracked")?;
-        }
+        File::create(&tracked)?.write_all(b"tracked")?;
 
-        let mut registry = Registry::new();
-        registry.add_path(&file_tracked)?;
+        let mut reg = Registry::new();
+        reg.add_path(dir.path())?;
 
-        {
-            let mut f = File::create(&file_new)?;
-            writeln!(f, "this one is new")?;
-        }
+        File::create(&newfile)?.write_all(b"new")?;
 
-        // verify, scanning the directory for new files
-        let (results, summary) = verify_registry(&mut registry, Some(dir.path()))?;
+        let (results, summary) = verify_registry(&mut reg)?;
         assert_eq!(summary.new, 1);
 
-        let found_new = results
+        let saw_new = results
             .iter()
             .any(|r| r.path.ends_with("new.txt") && r.status == Status::New);
+        assert!(saw_new);
 
-        assert!(
-            found_new,
-            "expected to find new.txt reported as Status::New"
-        );
         Ok(())
     }
 }

@@ -18,7 +18,8 @@ fn main() -> io::Result<()> {
     match cli.command {
         Commands::Hash { path } => run_hash(&path),
         Commands::Add { path } => run_add(&registry_path, &path),
-        Commands::Verify { scan_root } => run_verify(&registry_path, scan_root.as_deref()),
+        // we ignore any internal fields on Verify here, and just use the registry
+        Commands::Verify { .. } => run_verify(&registry_path),
         Commands::List { json } => run_list(&registry_path, json),
         Commands::Prune => run_prune(&registry_path),
     }
@@ -48,7 +49,7 @@ fn run_add(registry_path: &Path, path: &Path) -> io::Result<()> {
 }
 
 /// run the `verify` subcommand
-fn run_verify(registry_path: &Path, scan_root: Option<&Path>) -> io::Result<()> {
+fn run_verify(registry_path: &Path) -> io::Result<()> {
     if !registry_path.exists() {
         eprintln!(
             "registry file {} does not exist, nothing to verify",
@@ -58,7 +59,7 @@ fn run_verify(registry_path: &Path, scan_root: Option<&Path>) -> io::Result<()> 
     }
 
     let mut registry = Registry::load(registry_path)?;
-    let (results, summary) = verify_registry(&mut registry, scan_root)?;
+    let (results, summary) = verify_registry(&mut registry)?;
     registry.save(registry_path)?;
 
     print_verify_results(&results, &summary);
